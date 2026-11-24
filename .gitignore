@@ -1,0 +1,22 @@
+# Ansible
+ansible/inventory.ini
+*.retry
+.vault_pass
+
+# Secrets and private keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+id_rsa
+id_ed25519
+secrets/
+
+# Temporary files
+*.swp
+*.swo
+*~
+.DS_Store
+__pycache__/
+*.py[cod]

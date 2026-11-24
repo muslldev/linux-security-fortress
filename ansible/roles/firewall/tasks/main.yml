@@ -1,0 +1,27 @@
+---
+- name: Install firewalld
+  ansible.builtin.dnf:
+    name: firewalld
+    state: present
+    
+- name: Ensure firewalld is enabled and running
+  ansible.builtin.service:
+    name: firewalld
+    state: started
+    enabled: true
+
+- name: Add SSH access rule
+  ansible.posix.firewalld:
+    rich_rule: 'rule priority="-4" family="ipv4" source address="{{ ssh_allowed_ip }}" port port="{{ ssh_port }}" protocol="tcp" accept'
+    zone: "{{ firewall_zone }}"
+    permanent: true
+    immediate: true
+    state: enabled
+
+- name: Set firewall target
+  ansible.posix.firewalld:
+    target: "{{ firewall_target }}"
+    zone: "{{ firewall_zone }}"
+    permanent: true
+    immediate: false
+    state: present

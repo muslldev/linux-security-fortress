@@ -1,0 +1,13 @@
+---
+- name: Linux Security Fortress
+  hosts: servers
+  become: true
+
+  roles:
+    - selinux
+    - ssh_hardening
+    - firewall
+    - fail2ban
+    - security_tests
+
+   

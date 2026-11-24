@@ -1,0 +1,14 @@
+---
+# SSH
+ssh_port: 2222
+ssh_allowed_user: protected
+ssh_allowed_ip: "{{ admin_ip }}"
+
+# Firewall
+firewall_zone: public
+firewall_target: DROP
+
+# Fail2ban
+fail2ban_maxretry: 5
+fail2ban_findtime: "10m"
+fail2ban_bantime: "1h"

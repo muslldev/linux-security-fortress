@@ -1,0 +1,120 @@
+---
+- name: Get SSH configuration
+  ansible.builtin.command: sshd -T
+  register: sshd_conf
+  changed_when: false
+
+- name: Check SSH port
+  ansible.builtin.assert:
+    that:
+      - "'port ' ~ ssh_port in sshd_conf.stdout"
+    fail_msg: "SSH port is incorrect"
+    success_msg: "SSH port is correct"
+
+- name: Check root login is disabled
+  ansible.builtin.assert:
+    that:
+      - "'permitrootlogin no' in sshd_conf.stdout"
+    fail_msg: "Root login is enabled"
+    success_msg: "Root login is disabled"
+
+- name: Check password authentication is disabled
+  ansible.builtin.assert:
+    that:
+      - "'passwordauthentication no' in sshd_conf.stdout"
+    fail_msg: "Password authentication is enabled"
+    success_msg: "Password authentication is disabled"
+
+- name: Check SELinux mode
+  ansible.builtin.command: getenforce
+  register: selinux_mode
+  changed_when: false
+
+- name: Verify SELinux is enforcing
+  ansible.builtin.assert:
+    that:
+      - selinux_mode.stdout == "Enforcing"
+    fail_msg: "SELinux is not enforcing"
+    success_msg: "SELinux is enforcing"
+
+- name: Check SELinux SSH port
+  ansible.builtin.command: semanage port -l
+  register: selinux_ports
+  changed_when: false
+
+- name: Verify SSH port in SELinux
+  ansible.builtin.assert:
+    that:
+      - "'ssh_port_t' in selinux_ports.stdout"
+      - "'tcp' in selinux_ports.stdout"
+      - ssh_port | string in selinux_ports.stdout
+    fail_msg: "SSH port is not properly configured in SELinux"
+    success_msg: "SSH port is allowed in SELinux"
+
+- name: Check firewall target
+  ansible.builtin.command: firewall-cmd --permanent --zone={{ firewall_zone }} --get-target
+  register: firewall_target_result
+  changed_when: false
+
+- name: Verify firewall target
+  ansible.builtin.assert:
+    that:
+      - firewall_target_result.stdout == firewall_target
+    fail_msg: "Firewall target is incorrect"
+    success_msg: "Firewall target is correct"
+
+- name: Check Fail2ban SSH jail
+  ansible.builtin.command: fail2ban-client status sshd
+  register: fail2ban_status
+  changed_when: false
+
+- name: Verify Fail2ban SSH jail
+  ansible.builtin.assert:
+    that:
+      - "'Status for the jail: sshd' in fail2ban_status.stdout"
+    fail_msg: "Fail2ban SSH jail is not active"
+    success_msg: "Fail2ban SSH jail is active"
+
+- name: Get listening TCP ports
+  ansible.builtin.command: ss -H -ltn
+  register: listening_tcp
+  changed_when: false
+
+- name: Verify only expected TCP port is listening
+  ansible.builtin.assert:
+    that:
+      - listening_tcp.stdout_lines | length > 0
+      - listening_tcp.stdout_lines | select('search', ':(2222)\s') | list | length > 0
+      - listening_tcp.stdout_lines | reject('search', ':(2222)\s') | list | length == 0
+    fail_msg: "Unexpected TCP listening ports detected"
+    success_msg: "Only the expected SSH TCP port is listening"
+
+- name: Check SSH hardening config permissions
+  ansible.builtin.stat:
+    path: /etc/ssh/sshd_config.d/99-security-hardening.conf
+  register: ssh_config_file
+
+- name: Verify SSH config ownership and permissions
+  ansible.builtin.assert:
+    that:
+      - ssh_config_file.stat.exists
+      - ssh_config_file.stat.pw_name == "root"
+      - ssh_config_file.stat.gr_name == "root"
+      - ssh_config_file.stat.mode == "0600"
+    fail_msg: "SSH hardening config permissions are insecure"
+    success_msg: "SSH hardening config permissions are secure"
+
+- name: Check available security updates
+  ansible.builtin.command: dnf updateinfo list --security
+  register: security_updates
+  changed_when: false
+  failed_when: false
+
+- name: Display security updates status
+  ansible.builtin.debug:
+    msg: >-
+      {{
+        'Security updates are available'
+        if security_updates.stdout | length > 0
+        else 'No security updates reported'
+      }}

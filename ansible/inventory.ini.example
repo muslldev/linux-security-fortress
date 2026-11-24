@@ -1,0 +1,2 @@
+[servers]
+server_vm ansible_host=10.0.1.10 ansible_user=user ansible_port=22 ansible_ssh_private_key_file=/home/admin/.ssh/id_ed25519 admin_ip=10.0.1.20
